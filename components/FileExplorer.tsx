@@ -7,6 +7,9 @@ import {
   SaveIcon,
 } from "lucide-react";
 
+import CodeMirror, { EditorView } from "@uiw/react-codemirror";
+import { vscodeDark } from "@uiw/codemirror-theme-vscode";
+
 import {
   Sidebar,
   SidebarContent,
@@ -33,7 +36,6 @@ import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { toast } from "@/hooks/use-toast";
 import {
-  Command,
   CommandDialog,
   CommandEmpty,
   CommandGroup,
@@ -41,6 +43,7 @@ import {
   CommandItem,
   CommandList,
 } from "./ui/command";
+import { getLanguageSupportExtension } from "@/lib/file-extensions-language-support";
 
 const BLACKLIST = ["node_modules", "vendor"];
 
@@ -116,6 +119,7 @@ export function FileExplorer() {
 
     setTree(tree);
     setRootDir(handle.name);
+    setSelectedFile(null);
   };
 
   const [content, setContent] = useState("");
@@ -123,6 +127,10 @@ export function FileExplorer() {
   useEffect(() => {
     setContent(selectedFile?.content ?? "");
   }, [selectedFile]);
+
+  const selectedFileExtension =
+    selectedFile?.name.split(".")[selectedFile?.name.split(".").length - 1] ||
+    "";
   return (
     <div className="flex w-full">
       <CommandMenu tree={tree} setSelectedFile={setSelectedFile} />
@@ -176,15 +184,13 @@ export function FileExplorer() {
           if (!selectedFile) return;
 
           e.preventDefault();
-          const content = // @ts-ignore
-            e.currentTarget.elements.namedItem("content")?.value as string;
 
           const writable = await selectedFile.handle.createWritable();
           await writable.write(content);
           await writable.close();
           toast({ description: "Saved" });
         }}
-        className="flex flex-col p-4 w-full"
+        className="flex flex-col p-4 w-full flex-1"
       >
         <div className="flex items-center justify-between mb-2 pb-2">
           <SidebarTrigger type="button" />
@@ -194,13 +200,20 @@ export function FileExplorer() {
           </Button>
         </div>
 
-        <textarea
-          className="font-mono text-sm w-full whitespace-pre-wrap border-border rounded-sm p-2 bg-gray-900 flex-1 focus:outline-none"
-          spellCheck={false}
-          name="content"
-          value={content}
-          onChange={(e) => setContent(e.currentTarget.value)}
-        ></textarea>
+        <div className="flex-1">
+          <CodeMirror
+            className="font-mono text-sm w-full whitespace-pre-wrap border-border rounded-sm flex-1 focus:outline-none"
+            spellCheck={false}
+            theme={vscodeDark}
+            extensions={[
+              ...(getLanguageSupportExtension(selectedFileExtension) ?? []),
+              EditorView.lineWrapping,
+              // EditorView.editable,
+            ]}
+            value={content}
+            onChange={(v) => setContent(v)}
+          />
+        </div>
       </form>
     </div>
   );
